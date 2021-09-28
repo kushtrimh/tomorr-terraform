@@ -14,12 +14,11 @@ provider "aws" {
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name            = "tomorr-dev-vpc"
+  name            = "${var.name_prefix}-vpc"
   cidr            = "10.0.0.0/16"
-  azs             = ["eu-central-1a", "eu-central-1b", "eu-central-1c"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
-
+  azs             = var.availability_zones
+  private_subnets = var.private_subnets
+  public_subnets  = var.public_subnets
   tags = {
     environment = var.environment
   }
@@ -29,7 +28,8 @@ module "nat_instance" {
   source  = "int128/nat-instance/aws"
   version = "2.0.0"
 
-  name                        = "main"
+  name                        = var.name_prefix
+  key_name                    = var.private_key_name
   vpc_id                      = module.vpc.vpc_id
   public_subnet               = module.vpc.public_subnets[0]
   private_subnets_cidr_blocks = module.vpc.private_subnets_cidr_blocks
@@ -41,6 +41,71 @@ module "nat_instance" {
 resource "aws_eip" "nat_eip" {
   network_interface = module.nat_instance.eni_id
   tags = {
-    Name = "nat-instance-eni"
+    Name = "${var.name_prefix}-nat-instance-eip"
+  }
+}
+
+resource "aws_security_group" "bastion_host" {
+  name        = "${var.name_prefix}-bastion-host"
+  description = "Security group to for bastion hosts, allowing traffic for SSH only"
+  vpc_id      = module.vpc.vpc_id
+  ingress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    description      = "SSH for bastion hosts"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    security_groups  = null
+    self             = null
+    prefix_list_ids  = null
+  }]
+
+  egress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    description      = null
+    security_groups  = null
+    self             = null
+    prefix_list_ids  = null
+  }]
+}
+
+resource "aws_launch_template" "bastion_host" {
+  name_prefix   = var.name_prefix
+  image_id      = var.bastion_ami
+  instance_type = "t3a.nano"
+  key_name      = var.private_key_name
+  network_interfaces {
+    security_groups = [aws_security_group.bastion_host.id]
+  }
+}
+
+resource "aws_autoscaling_group" "bastion_host" {
+  name                = "${var.name_prefix}-bastion-autoscaling-group"
+  vpc_zone_identifier = module.vpc.public_subnets
+  desired_capacity    = 1
+  min_size            = 1
+  max_size            = 1
+  tags = [{
+    key                 = "Name"
+    value               = "${var.name_prefix}-bastion-host"
+    propagate_at_launch = true
+  }]
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.bastion_host.id
+      }
+    }
+
+    instances_distribution {
+      on_demand_base_capacity                  = 0
+      on_demand_percentage_above_base_capacity = 0
+      spot_allocation_strategy                 = "lowest-price"
+    }
   }
 }
