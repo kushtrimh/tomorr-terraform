@@ -109,3 +109,15 @@ resource "aws_autoscaling_group" "bastion_host" {
     }
   }
 }
+
+resource "aws_db_subnet_group" "tomorr" {
+  name       = "${var.name_prefix}-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+}
+
+resource "aws_db_security_group" "tomorr" {
+  name = "${var.name_prefix}-rds"
+  ingress {
+    cidr = var.rds_cidr
+  }
+}

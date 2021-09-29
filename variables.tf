@@ -37,3 +37,8 @@ variable "private_key_name" {
   type        = string
   description = "Name of the private key to be used for connection to EC2 instances"
 }
+
+variable "rds_cidr" {
+  type        = string
+  description = "CIDR used for ingress in RDS instance"
+}
