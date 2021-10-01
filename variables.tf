@@ -38,7 +38,32 @@ variable "private_key_name" {
   description = "Name of the private key to be used for connection to EC2 instances"
 }
 
-variable "rds_cidr" {
+variable "rds_port" {
+  type        = number
+  description = "RDS instance port"
+  default     = 5432
+}
+
+variable "rds_username" {
   type        = string
-  description = "CIDR used for ingress in RDS instance"
+  description = "RDS instance username"
+  default     = "tomorrdev"
+}
+
+variable "rds_password" {
+  type        = string
+  description = "RDS instance password"
+  sensitive   = true
+}
+
+variable "rds_parameter_group_name" {
+  type        = string
+  description = "RDS instance parameter group name"
+  default     = "default.postgres13"
+}
+
+variable "rds_name" {
+  type        = string
+  description = "RDS instance name"
+  default     = "tomorrdev"
 }

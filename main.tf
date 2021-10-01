@@ -47,7 +47,7 @@ resource "aws_eip" "nat_eip" {
 
 resource "aws_security_group" "bastion_host" {
   name        = "${var.name_prefix}-bastion-host"
-  description = "Security group to for bastion hosts, allowing traffic for SSH only"
+  description = "Security group for bastion hosts, allowing traffic for SSH only"
   vpc_id      = module.vpc.vpc_id
   ingress = [{
     cidr_blocks      = ["0.0.0.0/0"]
@@ -72,6 +72,10 @@ resource "aws_security_group" "bastion_host" {
     self             = null
     prefix_list_ids  = null
   }]
+
+  tags = {
+    "Name" = "${var.name_prefix} Bastion Host Security Group"
+  }
 }
 
 resource "aws_launch_template" "bastion_host" {
@@ -110,14 +114,61 @@ resource "aws_autoscaling_group" "bastion_host" {
   }
 }
 
-resource "aws_db_subnet_group" "tomorr" {
+resource "aws_security_group" "db" {
+  name        = "${var.name_prefix}-rds"
+  description = "Security group for RDS instances"
+  vpc_id      = module.vpc.vpc_id
+  ingress = [{
+    from_port        = var.rds_port
+    to_port          = var.rds_port
+    cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+    protocol         = "tcp"
+    ipv6_cidr_blocks = null
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  egress = [{
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  tags = {
+    "Name" = "${var.name_prefix} RDS Security Group"
+  }
+}
+
+
+resource "aws_db_subnet_group" "db" {
   name       = "${var.name_prefix}-subnet-group"
   subnet_ids = module.vpc.private_subnets
 }
 
-resource "aws_db_security_group" "tomorr" {
-  name = "${var.name_prefix}-rds"
-  ingress {
-    cidr = var.rds_cidr
-  }
+resource "aws_db_instance" "db" {
+  identifier                      = "${var.name_prefix}-db"
+  instance_class                  = "db.t4g.micro"
+  allocated_storage               = 5
+  engine                          = "postgres"
+  engine_version                  = "13.3"
+  name                            = var.rds_name
+  username                        = var.rds_username
+  password                        = var.rds_password
+  db_subnet_group_name            = aws_db_subnet_group.db.name
+  vpc_security_group_ids          = [aws_security_group.db.id]
+  parameter_group_name            = var.rds_parameter_group_name
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  publicly_accessible             = false
+  multi_az                        = false
+  skip_final_snapshot             = true
+  apply_immediately               = true
+  backup_retention_period         = 7
 }
