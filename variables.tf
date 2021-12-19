@@ -74,14 +74,25 @@ variable "cache_parameter_group_name" {
   default     = "default.redis6.x"
 }
 
-variable "cache_engine_version" {
-  type        = string
-  description = "Cache engine version"
-  default     = "6.2"
-}
-
 variable "cache_port" {
   type        = number
   description = "Cache port"
   default     = 6379
+}
+
+variable "mq_username" {
+  type        = string
+  description = "MQ username"
+  default     = "tomorrmq"
+}
+
+variable "mq_password" {
+  type        = string
+  description = "MQ password"
+}
+
+variable "mq_port" {
+  type        = number
+  description = "MQ port"
+  default     = 5671
 }
