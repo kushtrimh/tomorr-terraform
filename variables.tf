@@ -67,3 +67,21 @@ variable "rds_name" {
   description = "RDS instance name"
   default     = "tomorrdev"
 }
+
+variable "cache_parameter_group_name" {
+  type        = string
+  description = "Cache parameter group name"
+  default     = "default.redis6.x"
+}
+
+variable "cache_engine_version" {
+  type        = string
+  description = "Cache engine version"
+  default     = "6.2"
+}
+
+variable "cache_port" {
+  type        = number
+  description = "Cache port"
+  default     = 6379
+}

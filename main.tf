@@ -172,3 +172,54 @@ resource "aws_db_instance" "db" {
   apply_immediately               = true
   backup_retention_period         = 7
 }
+
+resource "aws_security_group" "cache" {
+  name        = "${var.name_prefix}-cache"
+  description = "Security group for ElastiCache instances"
+  vpc_id      = module.vpc.vpc_id
+  ingress = [{
+    from_port        = var.cache_port
+    to_port          = var.cache_port
+    cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+    protocol         = "tcp"
+    ipv6_cidr_blocks = null
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  egress = [{
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  tags = {
+    "Name" = "${var.name_prefix} Cache Security Group"
+  }
+}
+
+resource "aws_elasticache_subnet_group" "cache" {
+  name       = "${var.name_prefix}-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+
+}
+
+resource "aws_elasticache_cluster" "cache" {
+  cluster_id           = "${var.name_prefix}-redis-cluster"
+  engine               = "redis"
+  node_type            = "cache.t2.micro"
+  num_cache_nodes      = 1
+  parameter_group_name = var.cache_parameter_group_name
+  engine_version       = var.cache_engine_version
+  subnet_group_name    = aws_elasticache_subnet_group.cache.name
+  security_group_ids   = [aws_security_group.cache.id]
+  port                 = var.cache_port
+}
