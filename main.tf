@@ -11,40 +11,23 @@ provider "aws" {
   region = "eu-central-1"
 }
 
+# VPC
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name            = "${var.name_prefix}-vpc"
-  cidr            = "10.0.0.0/16"
-  azs             = var.availability_zones
-  private_subnets = var.private_subnets
-  public_subnets  = var.public_subnets
+  name               = "${var.name_prefix}-vpc"
+  cidr               = "10.0.0.0/16"
+  azs                = var.availability_zones
+  private_subnets    = var.private_subnets
+  public_subnets     = var.public_subnets
+  enable_nat_gateway = true
+  single_nat_gateway = true
   tags = {
     environment = var.environment
   }
 }
 
-module "nat_instance" {
-  source  = "int128/nat-instance/aws"
-  version = "2.0.0"
-
-  name                        = var.name_prefix
-  key_name                    = var.private_key_name
-  vpc_id                      = module.vpc.vpc_id
-  public_subnet               = module.vpc.public_subnets[0]
-  private_subnets_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  private_route_table_ids     = module.vpc.private_route_table_ids
-  instance_types              = ["t3.nano", "t3a.nano"]
-  use_spot_instance           = true
-}
-
-resource "aws_eip" "nat_eip" {
-  network_interface = module.nat_instance.eni_id
-  tags = {
-    Name = "${var.name_prefix}-nat-instance-eip"
-  }
-}
-
+# Bastion host
 resource "aws_security_group" "bastion_host" {
   name        = "${var.name_prefix}-bastion-host"
   description = "Security group for bastion hosts, allowing traffic for SSH only"
@@ -79,7 +62,7 @@ resource "aws_security_group" "bastion_host" {
 }
 
 resource "aws_launch_template" "bastion_host" {
-  name_prefix   = var.name_prefix
+  name          = "${var.name_prefix}-bastion-host"
   image_id      = var.bastion_ami
   instance_type = "t3a.nano"
   key_name      = var.private_key_name
@@ -89,7 +72,7 @@ resource "aws_launch_template" "bastion_host" {
 }
 
 resource "aws_autoscaling_group" "bastion_host" {
-  name                = "${var.name_prefix}-bastion-autoscaling-group"
+  name                = "${var.name_prefix}-bastion-host-autoscaling-group"
   vpc_zone_identifier = module.vpc.public_subnets
   desired_capacity    = 1
   min_size            = 1
@@ -114,6 +97,7 @@ resource "aws_autoscaling_group" "bastion_host" {
   }
 }
 
+# Database
 resource "aws_security_group" "db" {
   name        = "${var.name_prefix}-rds"
   description = "Security group for RDS instances"
@@ -173,6 +157,7 @@ resource "aws_db_instance" "db" {
   backup_retention_period         = 7
 }
 
+# Cache
 resource "aws_security_group" "cache" {
   name        = "${var.name_prefix}-cache"
   description = "Security group for ElastiCache instances"
@@ -224,6 +209,7 @@ resource "aws_elasticache_cluster" "cache" {
   port                 = var.cache_port
 }
 
+# Message queue
 resource "aws_security_group" "mq" {
   name        = "${var.name_prefix}-mq"
   description = "Security group for AmazonMQ instances"
@@ -292,5 +278,242 @@ resource "aws_mq_broker" "mq" {
     username = var.mq_username
     password = var.mq_password
   }
+}
 
+# Load balancer
+resource "aws_security_group" "loadbalancer" {
+  name        = "${var.name_prefix}-loadbalancer"
+  description = "Security group for the load balancer"
+  vpc_id      = module.vpc.vpc_id
+  ingress = [{
+    from_port        = 80
+    to_port          = 80
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    protocol         = "tcp"
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+    },
+    {
+      from_port        = 443
+      to_port          = 443
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      protocol         = "tcp"
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = null
+  }]
+
+  egress = [{
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  tags = {
+    "Name" = "${var.name_prefix} Load Balancer Security Group"
+  }
+}
+
+data "aws_elb_service_account" "loadbalancer" {}
+
+data "aws_iam_policy_document" "s3_loadbalancer" {
+  policy_id = "${var.name_prefix}-loadbalancer-access-logs-policy"
+
+  statement {
+    actions   = ["s3:PutObject"]
+    effect    = "Allow"
+    resources = ["${aws_s3_bucket.loadbalancer.arn}/*"]
+    principals {
+      identifiers = ["${data.aws_elb_service_account.loadbalancer.arn}"]
+      type        = "AWS"
+    }
+  }
+}
+
+resource "aws_s3_bucket" "loadbalancer" {
+  bucket_prefix = "${var.name_prefix}-alb-access-logs"
+  acl           = "private"
+  force_destroy = true
+  versioning {
+    enabled = true
+  }
+  tags = {
+    Name        = "${var.name_prefix}-alb-access-logs"
+    environment = var.environment
+  }
+}
+
+resource "aws_s3_bucket_policy" "loadbalancer" {
+  bucket = aws_s3_bucket.loadbalancer.id
+  policy = data.aws_iam_policy_document.s3_loadbalancer.json
+}
+
+resource "aws_lb" "loadbalancer" {
+  name               = "${var.name_prefix}-alb"
+  internal           = true
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.loadbalancer.id]
+  subnets            = module.vpc.public_subnets
+
+  access_logs {
+    bucket  = aws_s3_bucket.loadbalancer.bucket
+    prefix  = "${var.name_prefix}-access-log"
+    enabled = true
+  }
+
+  tags = {
+    environment = var.environment
+  }
+}
+
+resource "aws_autoscaling_attachment" "asg_alb_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.application.id
+  alb_target_group_arn   = aws_lb_target_group.application.arn
+}
+
+# Application
+resource "aws_lb_target_group" "application" {
+  name        = "${var.name_prefix}-application"
+  port        = var.instance_port
+  protocol    = "HTTP"
+  target_type = "instance"
+  vpc_id      = module.vpc.vpc_id
+}
+
+resource "aws_security_group" "application" {
+  name        = "${var.name_prefix}-application"
+  description = "Security group for the application instances"
+  vpc_id      = module.vpc.vpc_id
+  ingress = [{
+    from_port        = var.instance_port
+    to_port          = var.instance_port
+    cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+    protocol         = "tcp"
+    ipv6_cidr_blocks = null
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+    },
+    {
+      from_port        = 80
+      to_port          = 80
+      cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+      protocol         = "tcp"
+      ipv6_cidr_blocks = null
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = null
+    },
+    {
+      from_port        = 443
+      to_port          = 443
+      cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+      protocol         = "tcp"
+      ipv6_cidr_blocks = null
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = null
+    },
+    {
+      from_port        = 22
+      to_port          = 22
+      cidr_blocks      = concat(module.vpc.private_subnets_cidr_blocks, module.vpc.public_subnets_cidr_blocks)
+      protocol         = "tcp"
+      ipv6_cidr_blocks = null
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = null
+  }]
+
+  egress = [{
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+    description      = null
+    prefix_list_ids  = null
+    security_groups  = null
+    self             = null
+  }]
+
+  tags = {
+    "Name" = "${var.name_prefix} Application Security Group"
+  }
+}
+
+resource "aws_launch_template" "application" {
+  name          = "${var.name_prefix}-application"
+  image_id      = var.instance_ami
+  instance_type = "t3a.nano"
+  key_name      = var.private_key_name
+  network_interfaces {
+    security_groups = [aws_security_group.application.id]
+  }
+
+  monitoring {
+    enabled = true
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name        = "${var.name_prefix}-application"
+      environment = var.environment
+    }
+  }
+}
+
+resource "aws_placement_group" "application" {
+  name     = "${var.name_prefix}-application"
+  strategy = "spread"
+}
+
+resource "aws_autoscaling_group" "application" {
+  name                      = "${var.name_prefix}-applicaition-autoscaling-group"
+  min_size                  = 2
+  max_size                  = 3
+  desired_capacity          = 2
+  health_check_grace_period = 300
+  health_check_type         = "ELB"
+  vpc_zone_identifier       = module.vpc.private_subnets
+  target_group_arns         = [aws_lb_target_group.application.arn]
+  placement_group           = aws_placement_group.application.id
+
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.application.id
+      }
+    }
+
+    instances_distribution {
+      on_demand_base_capacity                  = 0
+      on_demand_percentage_above_base_capacity = 0
+      spot_allocation_strategy                 = "lowest-price"
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      target_group_arns,
+      load_balancers
+    ]
+  }
 }

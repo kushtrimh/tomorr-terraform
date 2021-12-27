@@ -96,3 +96,20 @@ variable "mq_port" {
   description = "MQ port"
   default     = 5671
 }
+
+variable "full_repository_id" {
+  type        = string
+  description = "Full repository id where source changes are to be detected"
+  default     = "kushtrimh/tomorr"
+}
+
+variable "instance_port" {
+  type        = number
+  description = "Port where the application is deployed on the instances"
+  default     = 8098
+}
+
+variable "instance_ami" {
+  type        = string
+  description = "AMI to use for the application instances"
+}
