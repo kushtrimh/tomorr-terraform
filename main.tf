@@ -377,20 +377,40 @@ resource "aws_lb" "loadbalancer" {
   }
 }
 
-resource "aws_autoscaling_attachment" "asg_alb_attachment" {
-  autoscaling_group_name = aws_autoscaling_group.application.id
-  alb_target_group_arn   = aws_lb_target_group.application.arn
-}
-
-# Application
 resource "aws_lb_target_group" "application" {
   name        = "${var.name_prefix}-application"
   port        = var.instance_port
   protocol    = "HTTP"
   target_type = "instance"
   vpc_id      = module.vpc.vpc_id
+
+  health_check {
+    enabled = true
+    port    = 80
+  }
 }
 
+resource "aws_autoscaling_attachment" "asg_alb_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.application.id
+  alb_target_group_arn   = aws_lb_target_group.application.arn
+}
+
+resource "aws_lb_listener" "name" {
+  port              = 80
+  protocol          = "HTTP"
+  load_balancer_arn = aws_lb.loadbalancer.arn
+
+  default_action {
+    type = "forward"
+    forward {
+      target_group {
+        arn = aws_lb_target_group.application.arn
+      }
+    }
+  }
+}
+
+# Application
 resource "aws_security_group" "application" {
   name        = "${var.name_prefix}-application"
   description = "Security group for the application instances"
@@ -457,11 +477,68 @@ resource "aws_security_group" "application" {
   }
 }
 
+resource "aws_iam_role" "application" {
+  name = "${var.name_prefix}-application-role"
+
+  assume_role_policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "ec2.amazonaws.com"
+        }
+        "Action" : "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "application" {
+  name        = "${var.name_prefix}-ec2-application-policy"
+  description = "Policy for ${var.name_prefix} EC2 instances"
+
+  policy = <<EOF
+{
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "s3:Get*",
+          "s3:List*",
+          "s3-object-lambda:Get*",
+          "s3-object-lambda:List*"
+        ],
+        "Resource" : "*"
+      }
+    ]
+  }
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "application" {
+  role       = aws_iam_role.application.name
+  policy_arn = aws_iam_policy.application.arn
+}
+
+resource "aws_iam_instance_profile" "application" {
+  name = "${var.name_prefix}-application-instance-profile"
+  role = aws_iam_role.application.name
+}
+
 resource "aws_launch_template" "application" {
   name          = "${var.name_prefix}-application"
   image_id      = var.instance_ami
   instance_type = "t3a.nano"
   key_name      = var.private_key_name
+
+  update_default_version = true
+
+  iam_instance_profile {
+    arn = aws_iam_instance_profile.application.arn
+  }
+
   network_interfaces {
     security_groups = [aws_security_group.application.id]
   }
@@ -493,8 +570,9 @@ resource "aws_autoscaling_group" "application" {
   health_check_grace_period = 300
   health_check_type         = "ELB"
   vpc_zone_identifier       = module.vpc.private_subnets
-  target_group_arns         = [aws_lb_target_group.application.arn]
-  placement_group           = aws_placement_group.application.id
+
+  target_group_arns = [aws_lb_target_group.application.arn]
+  placement_group   = aws_placement_group.application.id
 
   mixed_instances_policy {
     launch_template {

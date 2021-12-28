@@ -64,8 +64,8 @@ variable "rds_parameter_group_name" {
 
 variable "rds_name" {
   type        = string
-  description = "RDS instance name"
-  default     = "tomorrdev"
+  description = "RDS database name"
+  default     = "postgres"
 }
 
 variable "cache_parameter_group_name" {
