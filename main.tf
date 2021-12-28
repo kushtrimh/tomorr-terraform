@@ -361,7 +361,7 @@ resource "aws_s3_bucket_policy" "loadbalancer" {
 
 resource "aws_lb" "loadbalancer" {
   name               = "${var.name_prefix}-alb"
-  internal           = true
+  internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.loadbalancer.id]
   subnets            = module.vpc.public_subnets
