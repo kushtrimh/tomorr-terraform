@@ -14,6 +14,11 @@ variable "name_prefix" {
   default     = "tomorr"
 }
 
+variable "private_key_name" {
+  type        = string
+  description = "Name of the private key to be used for connection to EC2 instances"
+}
+
 variable "availability_zones" {
   type        = list(string)
   description = "Availability zones to be used"
@@ -26,16 +31,10 @@ variable "private_subnets" {
   default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
 }
 
-
 variable "public_subnets" {
   type        = list(string)
   description = "Public subnets of the VPC that will be created"
   default     = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
-}
-
-variable "private_key_name" {
-  type        = string
-  description = "Name of the private key to be used for connection to EC2 instances"
 }
 
 variable "rds_port" {
@@ -107,9 +106,4 @@ variable "instance_port" {
   type        = number
   description = "Port where the application is deployed on the instances"
   default     = 8098
-}
-
-variable "instance_ami" {
-  type        = string
-  description = "AMI to use for the application instances"
 }
