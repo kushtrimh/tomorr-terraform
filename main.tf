@@ -95,8 +95,7 @@ module "loadbalancer" {
 }
 
 # ECR
-
 module "ecr" {
   source = "./modules/aws-ecr"
-  name   = "${var.name_prefix}-repository"
+  name   = var.ecr_name
 }

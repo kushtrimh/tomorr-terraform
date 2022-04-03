@@ -107,3 +107,9 @@ variable "instance_port" {
   description = "Port where the application is deployed on the instances"
   default     = 8098
 }
+
+variable "ecr_name" {
+  type        = string
+  description = "ECR name"
+  default     = "tomorr"
+}
