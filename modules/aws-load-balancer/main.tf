@@ -1,5 +1,5 @@
 resource "aws_security_group" "loadbalancer" {
-  name        = "${var.name_prefix}-loadbalancer"
+  name        = "${var.name}-loadbalancer"
   description = "Security group for the load balancer"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -38,14 +38,14 @@ resource "aws_security_group" "loadbalancer" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} Load Balancer Security Group"
+    "Name" = "${var.name} Load Balancer Security Group"
   }
 }
 
 data "aws_elb_service_account" "loadbalancer" {}
 
 data "aws_iam_policy_document" "s3_loadbalancer" {
-  policy_id = "${var.name_prefix}-loadbalancer-access-logs-policy"
+  policy_id = "${var.name}-loadbalancer-access-logs-policy"
 
   statement {
     actions   = ["s3:PutObject"]
@@ -59,16 +59,25 @@ data "aws_iam_policy_document" "s3_loadbalancer" {
 }
 
 resource "aws_s3_bucket" "loadbalancer" {
-  bucket_prefix = "${var.name_prefix}-alb-access-logs"
-  acl           = "private"
+  bucket_prefix = "${var.name}-alb-access-logs"
   force_destroy = true
-  versioning {
-    enabled = true
-  }
+
   tags = {
-    Name        = "${var.name_prefix}-alb-access-logs"
+    Name        = "${var.name}-alb-access-logs"
     environment = var.environment
   }
+}
+
+resource "aws_s3_bucket_versioning" "loadbalancer" {
+  bucket = aws_s3_bucket.loadbalancer.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_acl" "loadbalancer" {
+  bucket = aws_s3_bucket.loadbalancer.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_policy" "loadbalancer" {
@@ -77,7 +86,7 @@ resource "aws_s3_bucket_policy" "loadbalancer" {
 }
 
 resource "aws_lb" "loadbalancer" {
-  name               = "${var.name_prefix}-alb"
+  name               = "${var.name}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.loadbalancer.id]
@@ -85,7 +94,7 @@ resource "aws_lb" "loadbalancer" {
 
   access_logs {
     bucket  = aws_s3_bucket.loadbalancer.bucket
-    prefix  = "${var.name_prefix}-access-log"
+    prefix  = "${var.name}-access-log"
     enabled = true
   }
 
@@ -95,22 +104,16 @@ resource "aws_lb" "loadbalancer" {
 }
 
 resource "aws_lb_target_group" "application" {
-  name        = "${var.name_prefix}-application"
+  name        = "${var.name}-application"
   port        = var.instance_port
   protocol    = "HTTP"
-  target_type = "instance"
+  target_type = "ip"
   vpc_id      = var.vpc_id
 
   health_check {
     enabled = true
-    port    = 80
+    port    = var.instance_port
   }
-}
-
-/*
-resource "aws_autoscaling_attachment" "asg_alb_attachment" {
-  autoscaling_group_name = aws_autoscaling_group.application.id
-  alb_target_group_arn   = aws_lb_target_group.application.arn
 }
 
 resource "aws_lb_listener" "name" {
@@ -127,4 +130,3 @@ resource "aws_lb_listener" "name" {
     }
   }
 }
-*/

@@ -1,5 +1,5 @@
 resource "aws_security_group" "cache" {
-  name        = "${var.name_prefix}-cache"
+  name        = "${var.name}-cache"
   description = "Security group for ElastiCache instances"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -27,18 +27,18 @@ resource "aws_security_group" "cache" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} Cache Security Group"
+    "Name" = "${var.name} Cache Security Group"
   }
 }
 
 resource "aws_elasticache_subnet_group" "cache" {
-  name       = "${var.name_prefix}-subnet-group"
+  name       = "${var.name}-subnet-group"
   subnet_ids = var.private_subnets
 
 }
 
 resource "aws_elasticache_cluster" "cache" {
-  cluster_id           = "${var.name_prefix}-redis-cluster"
+  cluster_id           = "${var.name}-redis-cluster"
   engine               = "redis"
   node_type            = "cache.t2.micro"
   num_cache_nodes      = 1

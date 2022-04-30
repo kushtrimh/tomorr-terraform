@@ -1,4 +1,4 @@
-variable "name_prefix" {
+variable "name" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
   default     = "tomorr"

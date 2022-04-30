@@ -1,5 +1,5 @@
 resource "aws_security_group" "bastion_host" {
-  name        = "${var.name_prefix}-bastion-host"
+  name        = "${var.name}-bastion-host"
   description = "Security group for bastion hosts, allowing traffic for SSH only"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -27,12 +27,12 @@ resource "aws_security_group" "bastion_host" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} Bastion Host Security Group"
+    "Name" = "${var.name} Bastion Host Security Group"
   }
 }
 
 resource "aws_launch_template" "bastion_host" {
-  name          = "${var.name_prefix}-bastion-host"
+  name          = "${var.name}-bastion-host"
   image_id      = var.bastion_ami
   instance_type = "t3a.nano"
   key_name      = var.private_key_name
@@ -42,16 +42,12 @@ resource "aws_launch_template" "bastion_host" {
 }
 
 resource "aws_autoscaling_group" "bastion_host" {
-  name                = "${var.name_prefix}-bastion-host-autoscaling-group"
+  name                = "${var.name}-bastion-host-autoscaling-group"
   vpc_zone_identifier = var.public_subnets
   desired_capacity    = 1
   min_size            = 1
   max_size            = 1
-  tags = [{
-    key                 = "Name"
-    value               = "${var.name_prefix}-bastion-host"
-    propagate_at_launch = true
-  }]
+
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
@@ -64,5 +60,11 @@ resource "aws_autoscaling_group" "bastion_host" {
       on_demand_percentage_above_base_capacity = 0
       spot_allocation_strategy                 = "lowest-price"
     }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.name}-bastion-host"
+    propagate_at_launch = true
   }
 }

@@ -1,5 +1,5 @@
 resource "aws_security_group" "db" {
-  name        = "${var.name_prefix}-rds"
+  name        = "${var.name}-rds"
   description = "Security group for RDS instances"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -27,23 +27,23 @@ resource "aws_security_group" "db" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} RDS Security Group"
+    "Name" = "${var.name} RDS Security Group"
   }
 }
 
 
 resource "aws_db_subnet_group" "db" {
-  name       = "${var.name_prefix}-subnet-group"
+  name       = "${var.name}-subnet-group"
   subnet_ids = var.private_subnets
 }
 
 resource "aws_db_instance" "db" {
-  identifier                      = "${var.name_prefix}-db"
+  identifier                      = "${var.name}-db"
   instance_class                  = "db.t4g.micro"
   allocated_storage               = 5
   engine                          = "postgres"
   engine_version                  = "13.3"
-  name                            = var.name
+  db_name                         = var.name
   username                        = var.username
   password                        = var.password
   db_subnet_group_name            = aws_db_subnet_group.db.name

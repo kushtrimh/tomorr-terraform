@@ -8,7 +8,12 @@ variable "bastion_ami" {
   description = "AMI to be used on bastion hosts"
 }
 
-variable "name_prefix" {
+variable "application_ami" {
+  type        = string
+  description = "AMI to be used on application instances"
+}
+
+variable "name" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
   default     = "tomorr"
@@ -112,4 +117,9 @@ variable "ecr_name" {
   type        = string
   description = "ECR name"
   default     = "tomorr"
+}
+
+variable "s3_env_bucket" {
+  type        = string
+  description = "Name of the S3 bucket that will hold environment variables"
 }
