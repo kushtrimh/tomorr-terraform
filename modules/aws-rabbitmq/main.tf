@@ -1,5 +1,5 @@
 resource "aws_security_group" "mq" {
-  name        = "${var.name_prefix}-mq"
+  name        = "${var.name}-mq"
   description = "Security group for AmazonMQ instances"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -49,12 +49,12 @@ resource "aws_security_group" "mq" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} MQ Security Group"
+    "Name" = "${var.name} MQ Security Group"
   }
 }
 
 resource "aws_mq_broker" "mq" {
-  broker_name        = "${var.name_prefix}-mq"
+  broker_name        = "${var.name}-mq"
   engine_type        = "RabbitMQ"
   engine_version     = "3.8.23"
   host_instance_type = "mq.t3.micro"

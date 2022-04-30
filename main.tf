@@ -14,17 +14,13 @@ terraform {
   }
 }
 
-locals {
-  s3_env_bucket_name = "tomorr-environment-application"
-}
-
 provider "aws" {}
 
 # VPC
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name               = "${var.name_prefix}-vpc"
+  name               = "${var.name}-vpc"
   cidr               = "10.0.0.0/16"
   azs                = var.availability_zones
   private_subnets    = var.private_subnets
@@ -40,7 +36,7 @@ module "vpc" {
 module "bastion_host" {
   source = "./modules/aws-bastion-host"
 
-  name_prefix      = var.name_prefix
+  name             = var.name
   private_key_name = var.private_key_name
   vpc_id           = module.vpc.vpc_id
   public_subnets   = module.vpc.public_subnets
@@ -51,8 +47,8 @@ module "bastion_host" {
 module "database" {
   source = "./modules/aws-rds"
 
-  name_prefix          = var.name_prefix
-  name                 = var.rds_name
+  name                 = var.name
+  db_name              = var.rds_name
   username             = var.rds_username
   password             = var.rds_password
   parameter_group_name = var.rds_parameter_group_name
@@ -66,7 +62,7 @@ module "database" {
 module "redis_cache" {
   source = "./modules/aws-elasticache"
 
-  name_prefix          = var.name_prefix
+  name                 = var.name
   vpc_id               = module.vpc.vpc_id
   parameter_group_name = var.cache_parameter_group_name
   port                 = var.cache_port
@@ -78,7 +74,7 @@ module "redis_cache" {
 module "rabbit_mq" {
   source = "./modules/aws-rabbitmq"
 
-  name_prefix         = var.name_prefix
+  name                = var.name
   vpc_id              = module.vpc.vpc_id
   port                = var.mq_port
   username            = var.mq_username
@@ -91,7 +87,7 @@ module "rabbit_mq" {
 module "loadbalancer" {
   source = "./modules/aws-load-balancer"
 
-  name_prefix    = var.name_prefix
+  name           = var.name
   vpc_id         = module.vpc.vpc_id
   instance_port  = var.instance_port
   public_subnets = module.vpc.public_subnets
@@ -106,7 +102,7 @@ module "ecr" {
 
 # Enviornment variables S3 bucket
 resource "aws_s3_bucket" "environment_var" {
-  bucket = local.s3_env_bucket_name
+  bucket = var.s3_env_bucket
 }
 
 resource "aws_s3_bucket_acl" "environment_var" {
@@ -125,27 +121,19 @@ resource "aws_s3_bucket_versioning" "loadbalancer" {
 module "application_ecs" {
   source = "./modules/aws-ecs"
 
-  cluster_name = "${var.name_prefix}-cluster"
+  name = "${var.name}-app"
 
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
 
   private_key_name = var.private_key_name
 
-  launch_template_sg_name = "${var.name_prefix}-application"
-  launch_template_name    = "${var.name_prefix}-application"
-  asg_name                = "${var.name_prefix}-application"
-  instance_name           = "${var.name_prefix}-application"
-  capacity_provider_name  = "${var.name_prefix}-application"
-  service_name            = "${var.name_prefix}-application"
-
   application_ami      = var.application_ami
   alb_target_group_arn = module.loadbalancer.alb_target_group_arn
 
-  container_name = var.name_prefix
+  container_name = var.name
   container_port = var.instance_port
 
-  task_definition_image  = "${module.ecr.arn}/tomorr"
-  task_definition_family = "${var.name_prefix}-application"
-  env_location           = "${aws_s3_bucket.environment_var.bucket}/${var.name_prefix}"
+  task_definition_image = "${module.ecr.arn}/tomorr"
+  env_location          = "${aws_s3_bucket.environment_var.bucket}/${var.name}.env"
 }

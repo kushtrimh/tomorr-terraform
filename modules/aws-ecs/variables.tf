@@ -1,21 +1,6 @@
-variable "cluster_name" {
-  type        = string
-  description = "ECS Cluster name"
-}
-
-variable "launch_template_sg_name" {
-  type        = string
-  description = "Security group name for the ECS launch template"
-}
-
 variable "vpc_id" {
   type        = string
   description = "VPC where the ECS will be launched"
-}
-
-variable "launch_template_name" {
-  type        = string
-  description = "Launch template name for the EC2 instances"
 }
 
 variable "private_subnets" {
@@ -28,29 +13,9 @@ variable "private_key_name" {
   description = "Private key to be used when connection to EC2 instances"
 }
 
-variable "asg_name" {
-  type        = string
-  description = "ASG name"
-}
-
 variable "application_ami" {
   type        = string
   description = "AMI to use when deploying the EC2 instances"
-}
-
-variable "instance_name" {
-  type        = string
-  description = "Instance name to use when deploying the instances"
-}
-
-variable "capacity_provider_name" {
-  type        = string
-  description = "Name of the capacity provider to be used by the cluster"
-}
-
-variable "service_name" {
-  type        = string
-  description = "Name of the ECS service"
 }
 
 variable "alb_target_group_arn" {
@@ -68,7 +33,7 @@ variable "container_port" {
   description = "Port that the ALB will use to connect to the containers"
 }
 
-variable "name_prefix" {
+variable "name" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
   default     = "tomorr"
@@ -77,11 +42,6 @@ variable "name_prefix" {
 variable "task_definition_image" {
   type        = string
   description = "ECR image for the task definition"
-}
-
-variable "task_definition_family" {
-  type        = string
-  description = "Name of the task definition family"
 }
 
 variable "env_location" {

@@ -13,7 +13,7 @@ variable "vpc_id" {
   description = "Id of the VPC that the bastion host will be provisioned in"
 }
 
-variable "name_prefix" {
+variable "name" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
   default     = "tomorr"

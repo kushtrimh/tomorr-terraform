@@ -1,5 +1,5 @@
 resource "aws_security_group" "loadbalancer" {
-  name        = "${var.name_prefix}-loadbalancer"
+  name        = "${var.name}-loadbalancer"
   description = "Security group for the load balancer"
   vpc_id      = var.vpc_id
   ingress = [{
@@ -38,14 +38,14 @@ resource "aws_security_group" "loadbalancer" {
   }]
 
   tags = {
-    "Name" = "${var.name_prefix} Load Balancer Security Group"
+    "Name" = "${var.name} Load Balancer Security Group"
   }
 }
 
 data "aws_elb_service_account" "loadbalancer" {}
 
 data "aws_iam_policy_document" "s3_loadbalancer" {
-  policy_id = "${var.name_prefix}-loadbalancer-access-logs-policy"
+  policy_id = "${var.name}-loadbalancer-access-logs-policy"
 
   statement {
     actions   = ["s3:PutObject"]
@@ -59,11 +59,11 @@ data "aws_iam_policy_document" "s3_loadbalancer" {
 }
 
 resource "aws_s3_bucket" "loadbalancer" {
-  bucket_prefix = "${var.name_prefix}-alb-access-logs"
+  bucket_prefix = "${var.name}-alb-access-logs"
   force_destroy = true
 
   tags = {
-    Name        = "${var.name_prefix}-alb-access-logs"
+    Name        = "${var.name}-alb-access-logs"
     environment = var.environment
   }
 }
@@ -86,7 +86,7 @@ resource "aws_s3_bucket_policy" "loadbalancer" {
 }
 
 resource "aws_lb" "loadbalancer" {
-  name               = "${var.name_prefix}-alb"
+  name               = "${var.name}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.loadbalancer.id]
@@ -94,7 +94,7 @@ resource "aws_lb" "loadbalancer" {
 
   access_logs {
     bucket  = aws_s3_bucket.loadbalancer.bucket
-    prefix  = "${var.name_prefix}-access-log"
+    prefix  = "${var.name}-access-log"
     enabled = true
   }
 
@@ -104,7 +104,7 @@ resource "aws_lb" "loadbalancer" {
 }
 
 resource "aws_lb_target_group" "application" {
-  name        = "${var.name_prefix}-application"
+  name        = "${var.name}-application"
   port        = var.instance_port
   protocol    = "HTTP"
   target_type = "ip"
@@ -112,7 +112,7 @@ resource "aws_lb_target_group" "application" {
 
   health_check {
     enabled = true
-    port    = 8098
+    port    = var.instance_port
   }
 }
 

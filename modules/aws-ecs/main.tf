@@ -1,23 +1,5 @@
 resource "aws_iam_role" "application_task_execution_role" {
-  name = "${var.name_prefix}-task-execution-role"
-
-  assume_role_policy = jsonencode(
-    {
-      Version = "2012-10-17"
-      Statement = {
-        Sid    = "",
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    }
-  )
-}
-
-resource "aws_iam_role" "application_task_role" {
-  name = "${var.name_prefix}-task-role"
+  name = "${var.name}-task-execution-role"
 
   assume_role_policy = jsonencode(
     {
@@ -35,7 +17,7 @@ resource "aws_iam_role" "application_task_role" {
 }
 
 resource "aws_iam_role_policy" "application_task" {
-  name = "${var.name_prefix}-task-execution-role-policy"
+  name = "${var.name}-task-execution-role-policy"
   role = aws_iam_role.application_task_execution_role.id
 
   policy = jsonencode(
@@ -70,7 +52,7 @@ resource "aws_iam_role_policy" "application_task" {
 }
 
 resource "aws_ecs_cluster" "application" {
-  name = var.cluster_name
+  name = "${var.name}-cluster"
 
   setting {
     name  = "containerInsights"
@@ -79,8 +61,8 @@ resource "aws_ecs_cluster" "application" {
 }
 
 resource "aws_security_group" "application" {
-  name        = var.launch_template_sg_name
-  description = "Security group for ${var.launch_template_sg_name}, allowing traffic for HTTP only"
+  name        = var.name
+  description = "Security group for ${var.name}, allowing traffic for HTTP only"
   vpc_id      = var.vpc_id
   ingress = [{
     cidr_blocks      = ["0.0.0.0/0"]
@@ -107,12 +89,12 @@ resource "aws_security_group" "application" {
   }]
 
   tags = {
-    "Name" = "${var.launch_template_sg_name} Security Group"
+    "Name" = "${var.name} Security Group"
   }
 }
 
 resource "aws_launch_template" "application" {
-  name          = var.launch_template_name
+  name          = "${var.name}-launch-template"
   image_id      = var.application_ami
   instance_type = "t3.micro"
   key_name      = var.private_key_name
@@ -123,7 +105,7 @@ resource "aws_launch_template" "application" {
 }
 
 resource "aws_autoscaling_group" "application" {
-  name                = var.asg_name
+  name                = var.name
   vpc_zone_identifier = var.private_subnets
   desired_capacity    = 0
   min_size            = 0
@@ -149,13 +131,13 @@ resource "aws_autoscaling_group" "application" {
   }
   tag {
     key                 = "Name"
-    value               = var.instance_name
+    value               = "${var.name}-instance"
     propagate_at_launch = true
   }
 }
 
 resource "aws_ecs_capacity_provider" "application" {
-  name = var.capacity_provider_name
+  name = "${var.name}-capacity-provider"
 
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.application.arn
@@ -182,14 +164,14 @@ resource "aws_ecs_cluster_capacity_providers" "application" {
 }
 
 resource "aws_ecs_task_definition" "application" {
-  family                = var.task_definition_family
+  family                = var.name
   container_definitions = <<TASK_DEFINITION
   [
     {
       "name": "${var.container_name}",
       "image": "${var.task_definition_image}",
-      "memory": 256,
-      "cpu": 512,
+      "memory": 512,
+      "cpu": 1024,
       "essential": true,
       "portMappings": [{
         "containerPort": ${var.container_port},
@@ -207,7 +189,7 @@ resource "aws_ecs_task_definition" "application" {
 }
 
 resource "aws_ecs_service" "application" {
-  name                    = var.service_name
+  name                    = "${var.name}-service"
   cluster                 = aws_ecs_cluster.application.id
   enable_ecs_managed_tags = true
   task_definition         = aws_ecs_task_definition.application.arn

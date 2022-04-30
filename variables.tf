@@ -13,7 +13,7 @@ variable "application_ami" {
   description = "AMI to be used on application instances"
 }
 
-variable "name_prefix" {
+variable "name" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
   default     = "tomorr"
@@ -117,4 +117,9 @@ variable "ecr_name" {
   type        = string
   description = "ECR name"
   default     = "tomorr"
+}
+
+variable "s3_env_bucket" {
+  type        = string
+  description = "Name of the S3 bucket that will hold environment variables"
 }
