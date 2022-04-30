@@ -60,15 +60,24 @@ data "aws_iam_policy_document" "s3_loadbalancer" {
 
 resource "aws_s3_bucket" "loadbalancer" {
   bucket_prefix = "${var.name_prefix}-alb-access-logs"
-  acl           = "private"
   force_destroy = true
-  versioning {
-    enabled = true
-  }
+
   tags = {
     Name        = "${var.name_prefix}-alb-access-logs"
     environment = var.environment
   }
+}
+
+resource "aws_s3_bucket_versioning" "loadbalancer" {
+  bucket = aws_s3_bucket.loadbalancer.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_acl" "loadbalancer" {
+  bucket = aws_s3_bucket.loadbalancer.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_policy" "loadbalancer" {
@@ -98,19 +107,13 @@ resource "aws_lb_target_group" "application" {
   name        = "${var.name_prefix}-application"
   port        = var.instance_port
   protocol    = "HTTP"
-  target_type = "instance"
+  target_type = "ip"
   vpc_id      = var.vpc_id
 
   health_check {
     enabled = true
-    port    = 80
+    port    = 8098
   }
-}
-
-/*
-resource "aws_autoscaling_attachment" "asg_alb_attachment" {
-  autoscaling_group_name = aws_autoscaling_group.application.id
-  alb_target_group_arn   = aws_lb_target_group.application.arn
 }
 
 resource "aws_lb_listener" "name" {
@@ -127,4 +130,3 @@ resource "aws_lb_listener" "name" {
     }
   }
 }
-*/

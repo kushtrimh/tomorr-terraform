@@ -47,11 +47,7 @@ resource "aws_autoscaling_group" "bastion_host" {
   desired_capacity    = 1
   min_size            = 1
   max_size            = 1
-  tags = [{
-    key                 = "Name"
-    value               = "${var.name_prefix}-bastion-host"
-    propagate_at_launch = true
-  }]
+
   mixed_instances_policy {
     launch_template {
       launch_template_specification {
@@ -64,5 +60,11 @@ resource "aws_autoscaling_group" "bastion_host" {
       on_demand_percentage_above_base_capacity = 0
       spot_allocation_strategy                 = "lowest-price"
     }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.name_prefix}-bastion-host"
+    propagate_at_launch = true
   }
 }

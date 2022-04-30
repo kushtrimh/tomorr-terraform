@@ -43,7 +43,7 @@ resource "aws_db_instance" "db" {
   allocated_storage               = 5
   engine                          = "postgres"
   engine_version                  = "13.3"
-  name                            = var.name
+  db_name                         = var.name
   username                        = var.username
   password                        = var.password
   db_subnet_group_name            = aws_db_subnet_group.db.name

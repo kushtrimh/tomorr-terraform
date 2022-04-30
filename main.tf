@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.63.0"
+      version = "~> 4.9.0"
     }
   }
   cloud {
@@ -12,6 +12,10 @@ terraform {
       name = "tomorr"
     }
   }
+}
+
+locals {
+  s3_env_bucket_name = "tomorr-environment-application"
 }
 
 provider "aws" {}
@@ -98,4 +102,50 @@ module "loadbalancer" {
 module "ecr" {
   source = "./modules/aws-ecr"
   name   = var.ecr_name
+}
+
+# Enviornment variables S3 bucket
+resource "aws_s3_bucket" "environment_var" {
+  bucket = local.s3_env_bucket_name
+}
+
+resource "aws_s3_bucket_acl" "environment_var" {
+  bucket = aws_s3_bucket.environment_var.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_versioning" "loadbalancer" {
+  bucket = aws_s3_bucket.environment_var.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# ECS
+module "application_ecs" {
+  source = "./modules/aws-ecs"
+
+  cluster_name = "${var.name_prefix}-cluster"
+
+  vpc_id          = module.vpc.vpc_id
+  private_subnets = module.vpc.private_subnets
+
+  private_key_name = var.private_key_name
+
+  launch_template_sg_name = "${var.name_prefix}-application"
+  launch_template_name    = "${var.name_prefix}-application"
+  asg_name                = "${var.name_prefix}-application"
+  instance_name           = "${var.name_prefix}-application"
+  capacity_provider_name  = "${var.name_prefix}-application"
+  service_name            = "${var.name_prefix}-application"
+
+  application_ami      = var.application_ami
+  alb_target_group_arn = module.loadbalancer.alb_target_group_arn
+
+  container_name = var.name_prefix
+  container_port = var.instance_port
+
+  task_definition_image  = "${module.ecr.arn}/tomorr"
+  task_definition_family = "${var.name_prefix}-application"
+  env_location           = "${aws_s3_bucket.environment_var.bucket}/${var.name_prefix}"
 }

@@ -8,6 +8,11 @@ variable "bastion_ami" {
   description = "AMI to be used on bastion hosts"
 }
 
+variable "application_ami" {
+  type        = string
+  description = "AMI to be used on application instances"
+}
+
 variable "name_prefix" {
   type        = string
   description = "Prefix to be used on project parts where prefix is needed"
