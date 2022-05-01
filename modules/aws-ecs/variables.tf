@@ -44,7 +44,12 @@ variable "task_definition_image" {
   description = "ECR image for the task definition"
 }
 
-variable "env_location" {
+variable "bastion_host_security_group_id" {
   type        = string
-  description = "Name of the bucket and the file where the environemnt variables are stored"
+  description = "Id of the bastion host security group"
+}
+
+variable "s3_env_bucket" {
+  type        = string
+  description = "Name of the S3 bucket that will hold environment variables"
 }

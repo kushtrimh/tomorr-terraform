@@ -15,10 +15,9 @@ variable "instance_port" {
   default     = 8098
 }
 
-variable "public_subnets" {
+variable "subnets" {
   type        = list(string)
-  description = "Public subnets of the VPC that will be created"
-  default     = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+  description = "Subnets to be attached to the VPC"
 }
 
 variable "environment" {
