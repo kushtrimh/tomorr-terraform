@@ -104,11 +104,12 @@ resource "aws_lb" "loadbalancer" {
 }
 
 resource "aws_lb_target_group" "application" {
-  name        = "${var.name}-application"
-  port        = var.instance_port
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
+  name                 = "${var.name}-application"
+  port                 = var.instance_port
+  protocol             = "HTTP"
+  target_type          = "ip"
+  vpc_id               = var.vpc_id
+  deregistration_delay = 30
 
   health_check {
     enabled             = true
