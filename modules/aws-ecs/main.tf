@@ -1,3 +1,9 @@
+// Log group
+resource "aws_cloudwatch_log_group" "application" {
+  name              = "${var.name}-container"
+  retention_in_days = 60
+}
+
 // Cluter
 resource "aws_ecs_cluster" "application" {
   name = "${var.name}-cluster"
@@ -14,13 +20,13 @@ resource "aws_security_group" "application" {
   description = "Security group for ${var.name}, allowing traffic for HTTP only"
   vpc_id      = var.vpc_id
   ingress = [{
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+    cidr_blocks      = null
+    ipv6_cidr_blocks = null
     description      = "HTTP for application"
     from_port        = var.container_port
     to_port          = var.container_port
     protocol         = "tcp"
-    security_groups  = null
+    security_groups  = [var.load_balancer_security_group_id]
     self             = null
     prefix_list_ids  = null
     },
@@ -209,7 +215,7 @@ resource "aws_ecs_task_definition" "application" {
     {
       "name": "${var.container_name}",
       "image": "${var.task_definition_image}",
-      "memory": 256,
+      "memory": 512,
       "cpu": 1024,
       "essential": true,
       "portMappings": [{
@@ -224,7 +230,7 @@ resource "aws_ecs_task_definition" "application" {
         "logDriver": "awslogs",
         "options": {
             "awslogs-group": "${var.name}-container",
-            "awslogs-region": "eu-central-1",
+            "awslogs-region": "${var.container_logs_region}",
             "awslogs-create-group": "true",
             "awslogs-stream-prefix": "${var.name}"
         }
@@ -301,37 +307,15 @@ resource "aws_security_group" "ecs_service" {
   description = "Security group for ${var.name}, allowing traffic for HTTP only"
   vpc_id      = var.vpc_id
   ingress = [{
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
+    cidr_blocks      = null
+    ipv6_cidr_blocks = null
     description      = "Port for application"
     from_port        = var.container_port
     to_port          = var.container_port
     protocol         = "tcp"
-    security_groups  = null
+    security_groups  = [var.load_balancer_security_group_id]
     self             = null
     prefix_list_ids  = null
-    },
-    {
-      cidr_blocks      = ["0.0.0.0/0"]
-      ipv6_cidr_blocks = ["::/0"]
-      description      = "HTTPS for application"
-      from_port        = 443
-      to_port          = 443
-      protocol         = "tcp"
-      security_groups  = null
-      self             = null
-      prefix_list_ids  = null
-    },
-    {
-      cidr_blocks      = ["0.0.0.0/0"]
-      ipv6_cidr_blocks = ["::/0"]
-      description      = "HTTP for application"
-      from_port        = 80
-      to_port          = 80
-      protocol         = "tcp"
-      security_groups  = null
-      self             = null
-      prefix_list_ids  = null
   }]
 
   egress = [{
@@ -380,8 +364,8 @@ resource "aws_ecs_service" "application" {
   }
 
   health_check_grace_period_seconds  = 120
-  deployment_minimum_healthy_percent = 20
-  deployment_maximum_percent         = 100
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
 }
 
 

@@ -49,7 +49,17 @@ variable "bastion_host_security_group_id" {
   description = "Id of the bastion host security group"
 }
 
+variable "load_balancer_security_group_id" {
+  type        = string
+  description = "Id of the load balancer security group"
+}
+
 variable "s3_env_bucket" {
   type        = string
   description = "Name of the S3 bucket that will hold environment variables"
+}
+
+variable "container_logs_region" {
+  type        = string
+  description = "Container logs AWS region"
 }
