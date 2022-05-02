@@ -123,3 +123,9 @@ variable "s3_env_bucket" {
   type        = string
   description = "Name of the S3 bucket that will hold environment variables"
 }
+
+variable "container_logs_region" {
+  type        = string
+  description = "Container logs AWS region"
+  default     = "eu-central-1"
+}

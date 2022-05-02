@@ -87,11 +87,11 @@ module "rabbit_mq" {
 module "loadbalancer" {
   source = "./modules/aws-load-balancer"
 
-  name           = var.name
-  vpc_id         = module.vpc.vpc_id
-  instance_port  = var.instance_port
-  public_subnets = module.vpc.public_subnets
-  environment    = var.environment
+  name          = var.name
+  vpc_id        = module.vpc.vpc_id
+  instance_port = var.instance_port
+  subnets       = module.vpc.public_subnets
+  environment   = var.environment
 }
 
 # ECR
@@ -100,28 +100,11 @@ module "ecr" {
   name   = var.ecr_name
 }
 
-# Enviornment variables S3 bucket
-resource "aws_s3_bucket" "environment_var" {
-  bucket = var.s3_env_bucket
-}
-
-resource "aws_s3_bucket_acl" "environment_var" {
-  bucket = aws_s3_bucket.environment_var.id
-  acl    = "private"
-}
-
-resource "aws_s3_bucket_versioning" "loadbalancer" {
-  bucket = aws_s3_bucket.environment_var.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
 # ECS
 module "application_ecs" {
   source = "./modules/aws-ecs"
 
-  name = "${var.name}-app"
+  name = var.name
 
   vpc_id          = module.vpc.vpc_id
   private_subnets = module.vpc.private_subnets
@@ -134,6 +117,11 @@ module "application_ecs" {
   container_name = var.name
   container_port = var.instance_port
 
-  task_definition_image = "${module.ecr.arn}/tomorr"
-  env_location          = "${aws_s3_bucket.environment_var.bucket}/${var.name}.env"
+  task_definition_image = "${module.ecr.arn}/${var.name}"
+
+  bastion_host_security_group_id  = module.bastion_host.security_group_id
+  load_balancer_security_group_id = module.loadbalancer.security_group_id
+
+  s3_env_bucket         = var.s3_env_bucket
+  container_logs_region = var.container_logs_region
 }

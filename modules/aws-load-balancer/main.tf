@@ -90,7 +90,7 @@ resource "aws_lb" "loadbalancer" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.loadbalancer.id]
-  subnets            = var.public_subnets
+  subnets            = var.subnets
 
   access_logs {
     bucket  = aws_s3_bucket.loadbalancer.bucket
@@ -111,8 +111,13 @@ resource "aws_lb_target_group" "application" {
   vpc_id      = var.vpc_id
 
   health_check {
-    enabled = true
-    port    = var.instance_port
+    enabled             = true
+    port                = var.instance_port
+    interval            = 60
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 4
+    path                = "/health"
   }
 }
 
