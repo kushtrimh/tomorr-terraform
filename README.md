@@ -3,7 +3,7 @@ Setup for tomorr on AWS
 
 ## Optional to complete before creating the infrastructure
 
-- If you plan on using AWS SES for the application email service, create a new *Verified identity for SES* and new *SMTP credentials*, otherwise create *SMTP credentials* from any other service you plan on use.
+- If you plan on using AWS SES for the application email service, create a new *Verified identity for SES* and new *SMTP credentials*, otherwise create *SMTP credentials* from any other service you plan on using.
 - Create IAM users that will have the least amount of privileges needed, for the CI/CD pipeline you plan on using.
 
 ## Steps to complete after creating the infrastructure
